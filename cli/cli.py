@@ -45,7 +45,7 @@ def main():
     elif args.algo == "rr":
         gantt, history, result = round_robin(processes, args.quantum)
 
-    print("\nGan tt Chart:")
+    print("\nGantt Chart:")
     print(gantt)
 
     print("\n Process Table:")
