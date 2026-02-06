@@ -1,14 +1,9 @@
 import argparse
 import webbrowser
-import subprocess
-import time
-import sys
-
 
 from backend.command_mapper import command_to_process
 from backend.state_store import load_state, save_state
 from backend.system_state import SystemState
-from backend.engine import run_scheduler
 
 
 def main():
@@ -41,7 +36,6 @@ def main():
 
         state.processes.append(proc)
         state.next_pid += 1
-
         save_state(state)
 
         print(f"[OBSYS] Process added → PID={proc.pid}, Program={args.program}")
@@ -49,22 +43,6 @@ def main():
     # ---------------- SCHEDULE COMMAND ----------------
     elif args.command == "schedule":
         print("[OBSYS] Scheduling processes...")
-
-
-        subprocess.Popen(
-            [
-                sys.executable,
-                "-m",
-                "uvicorn",
-                "backend.api:app",
-                "--port",
-                "8000",
-                "--reload"
-            ]
-        )
-
-
-        time.sleep(1)
 
         url = f"http://127.0.0.1:8000/schedule/{args.algo}"
         if args.algo == "rr" and args.quantum:

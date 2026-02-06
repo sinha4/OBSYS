@@ -1,28 +1,29 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Query, HTTPException
+from typing import Optional
+
+from backend.state_store import load_state
 from backend.engine import run_scheduler
-from backend.system_state import get_processes
 
 app = FastAPI()
 
-@app.get("/")
-def root():
-    return {"status": "OBSYS backend running"}
-
 @app.get("/schedule/{algo}")
-def schedule(algo: str, quantum: int | None = None):
-    processes = get_processes()
+def schedule(
+    algo: str,
+    quantum: Optional[int] = Query(None, gt=0)
+):
+    state = load_state()
 
-    if not processes:
-        return {"error": "No processes to schedule"}
+    if state is None:
+        raise HTTPException(status_code=400, detail="System state not initialized. Please create a state file first.")
 
-    process_data = [
-        (p["pid"], p["arrival"], p["burst"])
-        for p in processes
-    ]
+    if not state.processes:
+        raise HTTPException(status_code=400, detail="No processes found")
 
+    # Pass the actual Process objects so the scheduler can access attributes like .arrival_time
+    # and update .start_time, .finish_time, etc.
     result = run_scheduler(
         algo=algo,
-        process_data=process_data,
+        processes=state.processes,
         quantum=quantum
     )
 
