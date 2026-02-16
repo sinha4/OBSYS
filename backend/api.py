@@ -1,10 +1,20 @@
 from fastapi import FastAPI, Query, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from typing import Optional
 
 from backend.state_store import load_state
 from backend.engine import run_scheduler
 
 app = FastAPI()
+
+# Add CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 @app.get("/schedule/{algo}")
 def schedule(
@@ -27,4 +37,35 @@ def schedule(
         quantum=quantum
     )
 
-    return result
+    # Transform to match frontend expected format
+    metrics = result.get("metrics", {})
+    processes_data = metrics.get("processes", [])
+    
+    # Calculate system_time as max finish_time
+    system_time = max((p.get("finish_time", 0) for p in processes_data), default=0)
+    
+    # Calculate CPU utilization (assuming total burst time / system_time * 100)
+    total_burst = sum(p.burst_time for p in state.processes)
+    cpu_utilization = (total_burst / system_time * 100) if system_time > 0 else 0
+
+    return {
+        "algorithm": algo.upper(),
+        "system_time": system_time,
+        "processes": [
+            {
+                "pid": p.get("pid"),
+                "arrival_time": getattr(state.processes[i], "arrival_time", 0),
+                "burst_time": getattr(state.processes[i], "burst_time", 0),
+                "start_time": getattr(state.processes[i], "start_time", 0),
+                "finish_time": p.get("finish_time", 0),
+                "turnaround_time": p.get("turnaround_time", 0),
+                "waiting_time": p.get("waiting_time", 0),
+            }
+            for i, p in enumerate(processes_data)
+        ],
+        "avg_turnaround_time": metrics.get("average_turnaround_time", 0),
+        "avg_waiting_time": metrics.get("average_waiting_time", 0),
+        "cpu_utilization": cpu_utilization,
+        "gantt": result.get("gantt", []),
+        "history": result.get("history")
+    }
