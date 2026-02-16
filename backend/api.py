@@ -53,7 +53,7 @@ def schedule(
         "system_time": system_time,
         "processes": [
             {
-                "pid": p.get("pid"),
+                "pid": str(p.get("pid")),
                 "arrival_time": getattr(state.processes[i], "arrival_time", 0),
                 "burst_time": getattr(state.processes[i], "burst_time", 0),
                 "start_time": getattr(state.processes[i], "start_time", 0),
@@ -66,6 +66,9 @@ def schedule(
         "avg_turnaround_time": metrics.get("average_turnaround_time", 0),
         "avg_waiting_time": metrics.get("average_waiting_time", 0),
         "cpu_utilization": cpu_utilization,
-        "gantt": result.get("gantt", []),
+        "gantt": [
+            {"pid": str(entry[0]), "start": entry[1], "end": entry[2]}
+            for entry in result.get("gantt", [])
+        ],
         "history": result.get("history")
     }
