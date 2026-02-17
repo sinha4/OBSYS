@@ -112,3 +112,43 @@ def sjf_non_preemptive(process_list):
         completed += 1
 
     return gantt_chart, process_list
+
+
+def priority_scheduling(process_list):
+    """Non-preemptive Priority Scheduling"""
+    time = 0
+    completed = 0
+    n = len(process_list)
+    gantt_chart = []
+
+    for p in process_list:
+        p.remaining_time = p.burst_time
+        p.start_time = None
+        p.finish_time = None
+        # If priority attribute doesn't exist, assign default priority based on PID
+        if not hasattr(p, 'priority'):
+            p.priority = int(p.pid.replace('P', ''))  # P1 -> 1, P2 -> 2, etc.
+
+    while completed < n:
+        available = [p for p in process_list if p.arrival_time <= time and p.finish_time is None]
+
+        if not available:
+            time += 1
+            continue
+
+        # Select process with highest priority (lower number = higher priority)
+        current = min(available, key=lambda p: (p.priority, p.arrival_time))
+        current.start_time = time
+
+        start = time
+        time += current.burst_time
+        end = time
+
+        current.finish_time = time
+        current.turnaround_time = current.finish_time - current.arrival_time
+        current.waiting_time = current.turnaround_time - current.burst_time
+
+        gantt_chart.append((current.pid, start, end))
+        completed += 1
+
+    return gantt_chart, process_list

@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
+import { Download } from 'lucide-react';
 import { useSimulation } from '../hooks/useSimulation';
 import ControlPanel from '../components/ControlPanel';
 import ProcessVisualizer from '../components/ProcessVisualizer';
@@ -7,14 +8,17 @@ import DecisionPanel from '../components/DecisionPanel';
 import TimelineSlider from '../components/TimelineSlider';
 import SystemLogs from '../components/SystemLogs';
 import MemoryMap from '../components/MemoryMap';
+import { generatePDFReport } from '../utils/generateReport';
 import type { SchedulerResult } from '../types/simulation';
 
 export default function Dashboard() {
   const [selectedAlgo, setSelectedAlgo] = useState<string>('fcfs');
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const [downloadingPDF, setDownloadingPDF] = useState<boolean>(false);
 
   const simulation = useSimulation();
+  const ganttRef = useRef<HTMLDivElement>(null);
 
   const handleRun = async () => {
     setLoading(true);
@@ -43,6 +47,26 @@ export default function Dashboard() {
   const handleReset = () => {
     simulation.reset();
     setError(null);
+  };
+
+  const handleDownloadReport = async () => {
+    if (!simulation.backendData) {
+      alert('No simulation data available. Please run a simulation first.');
+      return;
+    }
+
+    setDownloadingPDF(true);
+    try {
+      await generatePDFReport({
+        data: simulation.backendData,
+        ganttRef: ganttRef.current,
+      });
+    } catch (error) {
+      console.error('Failed to generate PDF:', error);
+      alert('Failed to generate PDF report. Please try again.');
+    } finally {
+      setDownloadingPDF(false);
+    }
   };
 
   const isConnected = simulation.backendData !== null;
@@ -114,6 +138,15 @@ export default function Dashboard() {
             </button>
 
             <button
+              onClick={handleDownloadReport}
+              disabled={!isConnected || downloadingPDF}
+              className="px-8 py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white font-bold text-lg rounded-xl shadow-[0_0_25px_rgba(168,85,247,0.4)] hover:shadow-[0_0_35px_rgba(168,85,247,0.6)] hover:scale-105 transition-all duration-200 flex items-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Download className="w-5 h-5" />
+              {downloadingPDF ? 'GENERATING...' : 'DOWNLOAD REPORT'}
+            </button>
+
+            <button
               onClick={handleReset}
               className="px-8 py-3 bg-transparent border-2 border-gray-600/80 text-gray-300 font-bold text-lg rounded-xl hover:border-gray-500 hover:bg-gray-800/40 hover:scale-105 transition-all duration-200 flex items-center gap-3"
             >
@@ -163,7 +196,7 @@ export default function Dashboard() {
 
             {/* Gantt + Decision Panel */}
             <div className="grid grid-cols-3 gap-6 mb-6">
-              <div className="col-span-2">
+              <div className="col-span-2" ref={ganttRef}>
                 <GanttTimeline
                   gantt={simulation.backendData.gantt}
                   processes={simulation.backendData.processes}

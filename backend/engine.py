@@ -1,7 +1,8 @@
 from backend.schedulers import (
     fcfs_scheduling,
     round_robin,
-    sjf_non_preemptive
+    sjf_non_preemptive,
+    priority_scheduling
 )
 
 
@@ -22,12 +23,17 @@ def run_scheduler(algo, processes, quantum=None):
         history = None
 
     elif algo == "rr":
+        # Default quantum to 2 if not provided
         if quantum is None:
-            raise ValueError("Round Robin requires a quantum")
+            quantum = 2
         gantt, history, result = round_robin(processes, quantum)
 
     elif algo == "sjf":
         gantt, result = sjf_non_preemptive(processes)
+        history = None
+
+    elif algo == "priority":
+        gantt, result = priority_scheduling(processes)
         history = None
 
     else:

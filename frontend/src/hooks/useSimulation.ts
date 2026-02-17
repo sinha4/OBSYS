@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import type { SchedulerResult, SimulationStatus, ProcessStateInfo, ProcessState } from '../types/simulation';
 
 interface UseSimulationReturn {
@@ -48,15 +48,30 @@ export function useSimulation(): UseSimulationReturn {
             let state: ProcessState;
             let progress = 0;
 
-            if (currentTime < proc.start_time) {
-                state = 'READY';
-            } else if (currentTime >= proc.start_time && currentTime < proc.finish_time) {
+            // Check if process is currently running by looking at Gantt entries
+            const ganttEntries = backendData.gantt.filter(g => g.pid === proc.pid);
+            const isRunning = ganttEntries.some(entry =>
+                currentTime >= entry.start && currentTime < entry.end
+            );
+
+            if (isRunning) {
                 state = 'RUNNING';
-                const elapsed = currentTime - proc.start_time;
-                progress = (elapsed / proc.burst_time) * 100;
-            } else {
+                // Calculate progress based on total execution time vs burst time
+                const totalExecutedTime = ganttEntries.reduce((sum, entry) => {
+                    const entryEnd = Math.min(entry.end, currentTime);
+                    const entryStart = entry.start;
+                    if (currentTime >= entryStart) {
+                        return sum + (entryEnd - entryStart);
+                    }
+                    return sum;
+                }, 0);
+                progress = (totalExecutedTime / proc.burst_time) * 100;
+            } else if (currentTime >= proc.finish_time) {
                 state = 'COMPLETED';
                 progress = 100;
+            } else {
+                state = 'READY';
+                progress = 0;
             }
 
             states.set(proc.pid, {
@@ -72,21 +87,30 @@ export function useSimulation(): UseSimulationReturn {
 
     const processStates = getProcessStates();
 
-    // Derive current running process
-    const currentRunningProcess = Array.from(processStates.values())
-        .find((p) => p.state === 'RUNNING')?.pid || null;
+    // Derive current running process (memoized)
+    const currentRunningProcess = useMemo(() =>
+        Array.from(processStates.values())
+            .find((p) => p.state === 'RUNNING')?.pid || null,
+        [processStates]
+    );
 
-    // Derive ready queue
-    const readyQueue = Array.from(processStates.values())
-        .filter((p) => p.state === 'READY')
-        .sort((a, b) => a.data.arrival_time - b.data.arrival_time)
-        .map((p) => p.pid);
+    // Derive ready queue (memoized)
+    const readyQueue = useMemo(() =>
+        Array.from(processStates.values())
+            .filter((p) => p.state === 'READY')
+            .sort((a, b) => a.data.arrival_time - b.data.arrival_time)
+            .map((p) => p.pid),
+        [processStates]
+    );
 
-    // Derive completed processes
-    const completedProcesses = Array.from(processStates.values())
-        .filter((p) => p.state === 'COMPLETED')
-        .sort((a, b) => a.data.finish_time - b.data.finish_time)
-        .map((p) => p.pid);
+    // Derive completed processes (memoized)
+    const completedProcesses = useMemo(() =>
+        Array.from(processStates.values())
+            .filter((p) => p.state === 'COMPLETED')
+            .sort((a, b) => a.data.finish_time - b.data.finish_time)
+            .map((p) => p.pid),
+        [processStates]
+    );
 
     // Generate decision explanation
     const getCurrentDecision = useCallback((): string => {
@@ -134,8 +158,8 @@ export function useSimulation(): UseSimulationReturn {
 
             const deltaTime = timestamp - lastUpdateRef.current;
 
-            // Update every 150ms scaled by speed (optimized for performance)
-            if (deltaTime >= 150 / speed) {
+            // Update every 250ms scaled by speed (optimized for performance)
+            if (deltaTime >= 250 / speed) {
                 setCurrentTime((prev) => {
                     const next = prev + 1;
                     if (next >= maxTime) {
