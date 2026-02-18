@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { Download } from 'lucide-react';
+import { Download, BarChart2 } from 'lucide-react';
 import { useSimulation } from '../hooks/useSimulation';
 import ControlPanel from '../components/ControlPanel';
 import ProcessVisualizer from '../components/ProcessVisualizer';
@@ -8,6 +8,7 @@ import DecisionPanel from '../components/DecisionPanel';
 import TimelineSlider from '../components/TimelineSlider';
 import SystemLogs from '../components/SystemLogs';
 import MemoryMap from '../components/MemoryMap';
+import AlgoComparisonChart from '../components/AlgoComparisonChart';
 import { generatePDFReport } from '../utils/generateReport';
 import type { SchedulerResult } from '../types/simulation';
 
@@ -16,6 +17,8 @@ export default function Dashboard() {
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [downloadingPDF, setDownloadingPDF] = useState<boolean>(false);
+  const [comparisonData, setComparisonData] = useState<any[] | null>(null);
+  const [comparing, setComparing] = useState<boolean>(false);
 
   const simulation = useSimulation();
   const ganttRef = useRef<HTMLDivElement>(null);
@@ -47,6 +50,27 @@ export default function Dashboard() {
   const handleReset = () => {
     simulation.reset();
     setError(null);
+    setComparisonData(null);
+  };
+
+  const handleCompareAll = async () => {
+    setComparing(true);
+    setError(null);
+    try {
+      const algos = [
+        { key: 'fcfs', url: 'http://127.0.0.1:8000/schedule/fcfs' },
+        { key: 'sjf', url: 'http://127.0.0.1:8000/schedule/sjf' },
+        { key: 'rr', url: 'http://127.0.0.1:8000/schedule/rr?quantum=2' },
+        { key: 'priority', url: 'http://127.0.0.1:8000/schedule/priority' },
+      ];
+      const responses = await Promise.all(algos.map(a => fetch(a.url)));
+      const results = await Promise.all(responses.map(r => r.json()));
+      setComparisonData(results);
+    } catch (err: any) {
+      setError('Failed to fetch comparison data: ' + (err.message || ''));
+    } finally {
+      setComparing(false);
+    }
   };
 
   const handleDownloadReport = async () => {
@@ -135,6 +159,15 @@ export default function Dashboard() {
                 <path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z" />
               </svg>
               {loading ? 'LOADING...' : 'RUN'}
+            </button>
+
+            <button
+              onClick={handleCompareAll}
+              disabled={comparing}
+              className="px-8 py-3 bg-gradient-to-r from-cyan-500 to-blue-500 text-white font-bold text-lg rounded-xl shadow-[0_0_25px_rgba(6,182,212,0.4)] hover:shadow-[0_0_35px_rgba(6,182,212,0.6)] hover:scale-105 transition-all duration-200 flex items-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <BarChart2 className="w-5 h-5" />
+              {comparing ? 'COMPARING...' : 'COMPARE ALL'}
             </button>
 
             <button
@@ -237,6 +270,13 @@ export default function Dashboard() {
               <MemoryMap processStates={simulation.processStates} />
             </div>
           </>
+        )}
+
+        {/* Comparison Chart — shown after COMPARE ALL */}
+        {comparisonData && comparisonData.length > 0 && (
+          <div className="mt-6">
+            <AlgoComparisonChart results={comparisonData} />
+          </div>
         )}
 
         {/* Initial State Message */}
