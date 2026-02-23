@@ -1,6 +1,7 @@
 class Process:
-    def __init__(self, pid, arrival_time, burst_time, priority=0):
+    def __init__(self, pid, arrival_time, burst_time, priority=0, program="unknown"):
         self.pid = pid
+        self.program = program
         self.arrival_time = arrival_time
         self.burst_time = burst_time
         self.remaining_time = burst_time

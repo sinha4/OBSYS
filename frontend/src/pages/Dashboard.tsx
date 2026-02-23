@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { Download, BarChart2 } from 'lucide-react';
 import { useSimulation } from '../hooks/useSimulation';
 import ControlPanel from '../components/ControlPanel';
@@ -8,7 +8,7 @@ import DecisionPanel from '../components/DecisionPanel';
 import TimelineSlider from '../components/TimelineSlider';
 import SystemLogs from '../components/SystemLogs';
 import MemoryMap from '../components/MemoryMap';
-import AlgoComparisonChart from '../components/AlgoComparisonChart';
+import ComparisonModal from '../components/ComparisonModal';
 import { generatePDFReport } from '../utils/generateReport';
 import type { SchedulerResult } from '../types/simulation';
 
@@ -19,16 +19,23 @@ export default function Dashboard() {
   const [downloadingPDF, setDownloadingPDF] = useState<boolean>(false);
   const [comparisonData, setComparisonData] = useState<any[] | null>(null);
   const [comparing, setComparing] = useState<boolean>(false);
+  const [showComparisonModal, setShowComparisonModal] = useState<boolean>(false);
 
   const simulation = useSimulation();
   const ganttRef = useRef<HTMLDivElement>(null);
 
-  const handleRun = async () => {
+  const handleRun = useCallback(async (algoToRun?: string, quantumParam?: number) => {
+    const algo = algoToRun || selectedAlgo;
     setLoading(true);
     setError(null);
 
     try {
-      const response = await fetch(`http://127.0.0.1:8000/schedule/${selectedAlgo}`);
+      let url = `http://localhost:8000/schedule/${algo}`;
+      if (quantumParam) {
+        url += `?quantum=${quantumParam}`;
+      }
+
+      const response = await fetch(url);
 
       if (!response.ok) {
         const errorData = await response.json();
@@ -38,14 +45,28 @@ export default function Dashboard() {
       const data: SchedulerResult = await response.json();
 
       console.log('✅ Backend Response:', data);
-      simulation.initialize(data);
+      simulation.initialize(data, true); // autoPlay = true
     } catch (err: any) {
       console.error('❌ Backend Error:', err);
       setError(err.message || 'Failed to connect to backend');
     } finally {
       setLoading(false);
     }
-  };
+  }, [selectedAlgo, simulation]);
+
+  // Handle Auto-Run from URL query params
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const algo = params.get('algo');
+    const quantum = params.get('quantum');
+
+    if (algo) {
+      setSelectedAlgo(algo);
+      handleRun(algo, quantum ? parseInt(quantum) : undefined);
+      // Clean up URL
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }, [handleRun]);
 
   const handleReset = () => {
     simulation.reset();
@@ -58,14 +79,15 @@ export default function Dashboard() {
     setError(null);
     try {
       const algos = [
-        { key: 'fcfs', url: 'http://127.0.0.1:8000/schedule/fcfs' },
-        { key: 'sjf', url: 'http://127.0.0.1:8000/schedule/sjf' },
-        { key: 'rr', url: 'http://127.0.0.1:8000/schedule/rr?quantum=2' },
-        { key: 'priority', url: 'http://127.0.0.1:8000/schedule/priority' },
+        { key: 'fcfs', url: 'http://localhost:8000/schedule/fcfs' },
+        { key: 'sjf', url: 'http://localhost:8000/schedule/sjf' },
+        { key: 'rr', url: 'http://localhost:8000/schedule/rr?quantum=2' },
+        { key: 'priority', url: 'http://localhost:8000/schedule/priority' },
       ];
       const responses = await Promise.all(algos.map(a => fetch(a.url)));
       const results = await Promise.all(responses.map(r => r.json()));
       setComparisonData(results);
+      setShowComparisonModal(true);
     } catch (err: any) {
       setError('Failed to fetch comparison data: ' + (err.message || ''));
     } finally {
@@ -133,11 +155,11 @@ export default function Dashboard() {
 
         {/* Algorithm Selection */}
         <div className="bg-[#0f1420]/80 backdrop-blur-md border border-teal-500/30 rounded-2xl p-6 mb-6 shadow-[0_0_35px_rgba(20,184,166,0.12)]">
-          <div className="mb-4">
-            <label className="text-gray-500 text-xs font-bold tracking-[0.2em] uppercase">Scheduling Algorithm</label>
+          <div className="mb-4 text-center">
+            <label className="text-gray-500 text-xs font-bold tracking-[0.3em] uppercase">Control Matrix</label>
           </div>
 
-          <div className="flex items-center gap-5">
+          <div className="flex items-center gap-5 justify-center max-w-5xl mx-auto">
             <select
               className="flex-1 bg-[#0a0e1a] border-2 border-teal-500/40 rounded-xl px-6 py-3 text-white font-mono text-lg focus:outline-none focus:border-teal-500/70 focus:ring-4 focus:ring-teal-500/25 transition-all cursor-pointer shadow-inner"
               value={selectedAlgo}
@@ -151,14 +173,14 @@ export default function Dashboard() {
             </select>
 
             <button
-              onClick={handleRun}
+              onClick={() => handleRun()}
               disabled={loading}
-              className="px-8 py-3 bg-gradient-to-r from-teal-500 to-emerald-500 text-white font-bold text-lg rounded-xl shadow-[0_0_25px_rgba(20,184,166,0.5)] hover:shadow-[0_0_35px_rgba(20,184,166,0.7)] hover:scale-105 transition-all duration-200 flex items-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-10 py-3 bg-gradient-to-r from-teal-500 to-emerald-500 text-white font-bold text-lg rounded-xl shadow-[0_0_30px_rgba(20,184,166,0.5)] hover:shadow-[0_0_40px_rgba(20,184,166,0.7)] hover:scale-105 transition-all duration-200 flex items-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed uppercase"
             >
-              <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+              <svg className="w-5 h-5 animate-pulse" fill="currentColor" viewBox="0 0 20 20">
                 <path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z" />
               </svg>
-              {loading ? 'LOADING...' : 'RUN'}
+              {loading ? 'INITIALIZING...' : 'START SIMULATION'}
             </button>
 
             <button
@@ -261,6 +283,7 @@ export default function Dashboard() {
                   currentRunningProcess={simulation.currentRunningProcess}
                   completedProcesses={simulation.completedProcesses}
                   algorithm={simulation.backendData.algorithm}
+                  processStates={simulation.processStates}
                 />
               </div>
             </div>
@@ -270,13 +293,6 @@ export default function Dashboard() {
               <MemoryMap processStates={simulation.processStates} />
             </div>
           </>
-        )}
-
-        {/* Comparison Chart — shown after COMPARE ALL */}
-        {comparisonData && comparisonData.length > 0 && (
-          <div className="mt-6">
-            <AlgoComparisonChart results={comparisonData} />
-          </div>
         )}
 
         {/* Initial State Message */}
@@ -289,6 +305,13 @@ export default function Dashboard() {
             </p>
           </div>
         )}
+
+        {/* Comparison Modal */}
+        <ComparisonModal
+          isOpen={showComparisonModal}
+          onClose={() => setShowComparisonModal(false)}
+          results={comparisonData || []}
+        />
       </div>
     </div>
   );

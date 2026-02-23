@@ -12,6 +12,7 @@ export interface SchedulerResult {
 
 export interface ProcessData {
     pid: string;
+    program: string;
     arrival_time: number;
     burst_time: number;
     start_time: number;

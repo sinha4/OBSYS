@@ -54,6 +54,7 @@ def schedule(
         "processes": [
             {
                 "pid": str(p.get("pid")),
+                "program": getattr(state.processes[i], "program", "unknown"),
                 "arrival_time": getattr(state.processes[i], "arrival_time", 0),
                 "burst_time": getattr(state.processes[i], "burst_time", 0),
                 "start_time": getattr(state.processes[i], "start_time", 0),

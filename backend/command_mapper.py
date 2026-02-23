@@ -20,5 +20,6 @@ def command_to_process(command, arrival, pid):
         pid=pid,
         arrival_time=arrival,
         burst_time=burst_time,
-        priority=profile["priority"]
+        priority=profile["priority"],
+        program=command
     )

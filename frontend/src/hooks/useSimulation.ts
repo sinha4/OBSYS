@@ -17,7 +17,7 @@ interface UseSimulationReturn {
     currentDecision: string;
 
     // Actions
-    initialize: (data: SchedulerResult) => void;
+    initialize: (data: SchedulerResult, autoPlay?: boolean) => void;
     play: () => void;
     pause: () => void;
     step: () => void;
@@ -32,7 +32,7 @@ export function useSimulation(): UseSimulationReturn {
     const [currentTime, setCurrentTime] = useState(0);
     const [speed, setSpeedState] = useState(1);
 
-    const animationFrameRef = useRef<number | undefined>();
+    const animationFrameRef = useRef<number | undefined>(undefined);
     const lastUpdateRef = useRef<number>(0);
 
     // Calculate max time from backend data
@@ -184,10 +184,11 @@ export function useSimulation(): UseSimulationReturn {
     }, [status, speed, maxTime]);
 
     // Actions
-    const initialize = useCallback((data: SchedulerResult) => {
+    const initialize = useCallback((data: SchedulerResult, autoPlay = false) => {
         setBackendData(data);
         setCurrentTime(0);
-        setStatus('PAUSED');
+        setStatus(autoPlay ? 'RUNNING' : 'PAUSED');
+        lastUpdateRef.current = 0;
     }, []);
 
     const play = useCallback(() => {

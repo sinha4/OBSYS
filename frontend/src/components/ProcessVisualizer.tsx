@@ -55,7 +55,10 @@ export default function ProcessVisualizer({
                                     className="bg-yellow-500/10 border border-yellow-500/40 rounded-lg p-4 shadow-[0_0_15px_rgba(234,179,8,0.15)]"
                                 >
                                     <div className="flex items-center justify-between mb-2">
-                                        <span className="text-yellow-400 font-bold text-xl">P{pid}</span>
+                                        <div className="flex flex-col">
+                                            <span className="text-yellow-400 font-bold text-xl leading-none">P{pid}</span>
+                                            <span className="text-[10px] text-yellow-500/70 font-mono uppercase mt-1">{proc.data.program}</span>
+                                        </div>
                                         <span className="text-xs text-gray-500 font-mono">PRIO: {(proc.data as any).priority || 1}</span>
                                     </div>
                                     <div className="text-xs text-gray-400 font-mono">
@@ -101,8 +104,9 @@ export default function ProcessVisualizer({
 
                                     <div className="relative z-10">
                                         <div className="text-center mb-4">
-                                            <div className="text-emerald-400 font-bold text-4xl mb-2">P{runningProcess.pid}</div>
-                                            <div className="text-xs text-gray-400 font-mono">EXECUTING</div>
+                                            <div className="text-emerald-400 font-bold text-4xl mb-1">P{runningProcess.pid}</div>
+                                            <div className="text-sm text-emerald-500/80 font-mono font-bold uppercase mb-2">{runningProcess.data.program}</div>
+                                            <div className="text-[10px] text-gray-400 font-mono tracking-widest uppercase opacity-60">EXECUTING</div>
                                         </div>
 
                                         {/* Progress Bar */}
@@ -161,11 +165,16 @@ export default function ProcessVisualizer({
                                     layout
                                     initial={{ opacity: 0, scale: 0.8 }}
                                     animate={{ opacity: 1, scale: 1 }}
-                                    className="bg-purple-500/10 border border-purple-500/40 rounded-lg px-3 py-2 flex items-center gap-2"
+                                    className="bg-purple-500/10 border border-purple-500/40 rounded-lg px-3 py-2 flex items-center gap-3"
                                 >
-                                    <span className="text-purple-400 font-bold text-sm">P{pid}</span>
+                                    <div className="flex flex-col">
+                                        <span className="text-purple-400 font-bold text-sm">P{pid}</span>
+                                        <span className="text-[9px] text-purple-500/60 font-mono uppercase">{proc.data.program}</span>
+                                    </div>
+                                    <div className="flex flex-col items-end">
+                                        <span className="text-[10px] text-gray-500 font-mono">TAT: {proc.data.turnaround_time}ms</span>
+                                    </div>
                                     <span className="text-xs text-emerald-400 font-mono">✓</span>
-                                    <span className="text-xs text-gray-500 font-mono">TAT: {proc.data.turnaround_time}ms</span>
                                 </motion.div>
                             );
                         })}

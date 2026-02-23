@@ -1,5 +1,6 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { useEffect, useRef, useState } from 'react';
+import type { ProcessStateInfo } from '../types/simulation';
 
 interface LogEntry {
     id: number;
@@ -13,6 +14,7 @@ interface SystemLogsProps {
     currentRunningProcess: string | null;
     completedProcesses: string[];
     algorithm: string;
+    processStates: Map<string, ProcessStateInfo>;
 }
 
 const LOG_COLORS = {
@@ -31,6 +33,7 @@ export default function SystemLogs({
     currentRunningProcess,
     completedProcesses,
     algorithm,
+    processStates,
 }: SystemLogsProps) {
     const [logs, setLogs] = useState<LogEntry[]>([
         { id: 1, level: 'INIT', message: 'System core initialized', timestamp: 0 },
@@ -68,20 +71,24 @@ export default function SystemLogs({
     // Log process execution
     useEffect(() => {
         if (currentRunningProcess && currentRunningProcess !== lastRunningRef.current) {
-            addLog('EXEC', `Loading P${currentRunningProcess} into CPU`);
+            const proc = processStates.get(currentRunningProcess);
+            const name = proc?.data.program || 'unknown';
+            addLog('EXEC', `Loading P${currentRunningProcess} [${name}] into CPU`);
             lastRunningRef.current = currentRunningProcess;
         }
-    }, [currentRunningProcess]);
+    }, [currentRunningProcess, processStates]);
 
     // Log process completion
     useEffect(() => {
         completedProcesses.forEach((pid) => {
             if (!lastCompletedRef.current.has(pid)) {
-                addLog('DONE', `P${pid} completed execution`);
+                const proc = processStates.get(pid);
+                const name = proc?.data.program || 'unknown';
+                addLog('DONE', `P${pid} [${name}] completed execution`);
                 lastCompletedRef.current.add(pid);
             }
         });
-    }, [completedProcesses]);
+    }, [completedProcesses, processStates]);
 
     // Log simulation completion
     useEffect(() => {
