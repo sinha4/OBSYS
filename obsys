@@ -1,6 +1,18 @@
-#!/usr/bin/env python3
+#!/bin/bash
 
-from cli.cli import main
+# Find the directory where this script is located
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
 
-if __name__ == "__main__":
-    main()
+# Define path to virtual environment python
+VENV_PYTHON="$SCRIPT_DIR/venv/bin/python"
+
+if [ ! -f "$VENV_PYTHON" ]; then
+    # Fallback to python3 if venv doesn't exist (though it should)
+    echo "[OBSYS] Warning: Virtual environment not found at $VENV_PYTHON"
+    echo "[OBSYS] Please run 'npm install' and ensure venv is set up."
+    exit 1
+fi
+
+# Run the cli tool using the venv python
+export PYTHONPATH="$SCRIPT_DIR:$PYTHONPATH"
+exec "$VENV_PYTHON" "$SCRIPT_DIR/cli/cli.py" "$@"

@@ -29,6 +29,7 @@ def schedule(
     if not state.processes:
         raise HTTPException(status_code=400, detail="No processes found")
 
+    algo = algo.lower()
     # Pass the actual Process objects so the scheduler can access attributes like .arrival_time
     # and update .start_time, .finish_time, etc.
     result = run_scheduler(

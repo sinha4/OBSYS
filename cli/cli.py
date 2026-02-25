@@ -32,7 +32,9 @@ def start_backend():
         [VENV_PYTHON, "-m", "uvicorn", "backend.api:app", "--port", "8000"],
         cwd=PROJECT_ROOT,
         stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL
+        stderr=subprocess.DEVNULL,
+        stdin=subprocess.DEVNULL,
+        start_new_session=True
     )
     # Wait for it to start
     for _ in range(10):
@@ -48,12 +50,19 @@ def start_frontend():
         return
 
     print("[OBSYS] Starting frontend development server...")
-    subprocess.Popen(
-        ["npm", "run", "dev"],
-        cwd=os.path.join(PROJECT_ROOT, "frontend"),
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL
-    )
+    try:
+        subprocess.Popen(
+            ["npm", "run", "dev"],
+            cwd=os.path.join(PROJECT_ROOT, "frontend"),
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            stdin=subprocess.DEVNULL,
+            start_new_session=True
+        )
+    except FileNotFoundError:
+        print("[OBSYS] Error: 'npm' command not found.")
+        print("[OBSYS] Please ensure Node.js and npm are installed on your friend's laptop!")
+        return
     # Wait for it to start
     for _ in range(15):
         if is_port_in_use(5173):
@@ -77,6 +86,7 @@ def main():
 
     subparsers.add_parser("reset", help="Completely clear all processes and reset system state")
     subparsers.add_parser("ps", help="List all processes currently in the system state")
+    subparsers.add_parser("status", help="Show the current database status and simulation history")
 
     # obsys install-global
     subparsers.add_parser("install-global", help="Show instructions to install obsys globally")
@@ -96,9 +106,7 @@ def main():
         print("\n[OBSYS] --- GLOBAL INSTALLATION ---")
         print(f"To run 'obsys' from ANY directory, add this alias to your shell config (.zshrc or .bashrc):")
         print(f"\n    alias obsys='{script_path}'")
-        print(f"\nThen run: source ~/.zshrc (or ~/.bashrc)")
-        print("\nAlternatively, run this command to add it automatically:")
-        print(f"    echo \"alias obsys='{script_path}'\" >> ~/.zshrc && source ~/.zshrc")
+        print("\nThen restart your terminal or run: source ~/.zshrc")
         return
 
     # Special Reset Command
@@ -141,6 +149,56 @@ def main():
             print(f"[OBSYS] NOTE: OBSYS keeps processes until you run 'obsys reset'.")
         except ValueError as e:
             print(f"[OBSYS] Error: {e}")
+
+    # ---------------- STATUS COMMAND ----------------
+    elif args.command == "status":
+        print("\n" + "="*60)
+        print("  OBSYS SYSTEM STATUS (SQLite Backend)")
+        print("="*60)
+        
+        # 1. Current Processes
+        if not state.processes:
+            print("\n[ACTIVE PROCESSES] None")
+        else:
+            print(f"\n[ACTIVE PROCESSES] ({len(state.processes)} total)")
+            print(f"{'PID':<6} {'PROGRAM':<15} {'ARRIVAL':<10} {'BURST':<10}")
+            print("-" * 45)
+            for p in state.processes:
+                print(f"{p.pid:<6} {getattr(p, 'program', 'unknown'):<15} {p.arrival_time:<10} {p.burst_time:<10}")
+
+        # 2. Simulation History
+        try:
+            import requests
+            response = requests.get("http://localhost:8000/history", timeout=2)
+            if response.status_code == 200:
+                history = response.json()
+                if not history:
+                    print("\n[SIMULATION HISTORY] No runs recorded yet.")
+                else:
+                    print(f"\n[SIMULATION HISTORY] Last {min(5, len(history))} runs")
+                    print(f"{'ID':<4} {'ALGO':<10} {'WAITING':<10} {'TURNAROUND':<12} {'CPU %':<8}")
+                    print("-" * 50)
+                    for h in history[:5]:
+                        print(f"{h['id']:<4} {h['algorithm']:<10} {h['avg_waiting_time']:<10.1f} {h['avg_turnaround_time']:<12.1f} {h['cpu_utilization']:<8.1f}")
+        except Exception:
+            # Fallback to direct DB query if API is down
+            try:
+                from backend.database import SessionLocal
+                from backend.db_models import SimulationRunDB
+                session = SessionLocal()
+                history = session.query(SimulationRunDB).order_by(SimulationRunDB.timestamp.desc()).limit(5).all()
+                if history:
+                    print(f"\n[SIMULATION HISTORY] Last {len(history)} runs")
+                    print(f"{'ID':<4} {'ALGO':<10} {'WAITING':<10} {'TURNAROUND':<12} {'CPU %':<8}")
+                    print("-" * 50)
+                    for h in history:
+                        print(f"{h.id:<4} {h.algorithm:<10} {h.avg_waiting_time:<10.1f} {h.avg_turnaround_time:<12.1f} {h.cpu_utilization:<8.1f}")
+                session.close()
+            except Exception as e:
+                print(f"\n[SIMULATION HISTORY] Could not retrieve history: {e}")
+        
+        print("\n" + "="*60 + "\n")
+        return
 
     # ---------------- SCHEDULE COMMAND ----------------
     elif args.command == "schedule":
