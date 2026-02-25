@@ -48,6 +48,24 @@ def schedule(
     total_burst = sum(p.burst_time for p in state.processes)
     cpu_utilization = (total_burst / system_time * 100) if system_time > 0 else 0
 
+    # SAVE TO HISTORY
+    from backend.db_models import SimulationRunDB
+    from backend.database import SessionLocal
+    session = SessionLocal()
+    try:
+        new_run = SimulationRunDB(
+            algorithm=algo.upper(),
+            avg_waiting_time=metrics.get("average_waiting_time", 0),
+            avg_turnaround_time=metrics.get("average_turnaround_time", 0),
+            cpu_utilization=cpu_utilization
+        )
+        session.add(new_run)
+        session.commit()
+    except Exception as e:
+        print(f"Failed to save history: {e}")
+    finally:
+        session.close()
+
     return {
         "algorithm": algo.upper(),
         "system_time": system_time,
@@ -73,3 +91,24 @@ def schedule(
         ],
         "history": result.get("history")
     }
+
+@app.get("/history")
+def get_history():
+    from backend.db_models import SimulationRunDB
+    from backend.database import SessionLocal
+    session = SessionLocal()
+    try:
+        history = session.query(SimulationRunDB).order_by(SimulationRunDB.timestamp.desc()).all()
+        return [
+            {
+                "id": h.id,
+                "algorithm": h.algorithm,
+                "timestamp": h.timestamp.isoformat(),
+                "avg_waiting_time": h.avg_waiting_time,
+                "avg_turnaround_time": h.avg_turnaround_time,
+                "cpu_utilization": h.cpu_utilization
+            }
+            for h in history
+        ]
+    finally:
+        session.close()
