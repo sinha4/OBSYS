@@ -1,0 +1,16 @@
+INFO:     Will watch for changes in these directories: ['/Users/shambhavi/spd']
+INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+INFO:     Started reloader process [19863] using StatReload
+INFO:     Started server process [19867]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     127.0.0.1:52990 - "HEAD /history%3B HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:53042 - "HEAD /history%3B HTTP/1.1" 404 Not Found
+WARNING:  StatReload detected changes in 'cli/cli.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [19867]
+INFO:     Started server process [22604]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
